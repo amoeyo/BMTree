@@ -27,11 +27,11 @@ cntr_t
 Statistics::get_user_read_cntr() { return __user_read_cntr; }
 cntr_t 
 Statistics::get_extra_engine_write_cntr() { 
-	return __engine_extra_mem_bmt_write_cntr + __engine_extra_mem_index_write_cntr; 
+	return (__engine_extra_mem_bmt_write_cntr + __engine_extra_mem_index_write_cntr);
 }
 cntr_t 
 Statistics::get_extra_engine_read_cntr() {
-	return __engine_extra_mem_bmt_read_cntr + __engine_extra_mem_index_read_cntr;
+	return (__engine_extra_mem_bmt_read_cntr + __engine_extra_mem_index_read_cntr);
 }
 cntr_t 
 Statistics::get_hash_cntr() { return __hash_cntr; }

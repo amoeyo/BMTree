@@ -41,6 +41,8 @@ typedef uint8_t cacheline_t[CACHELINE]; // uint8_t*
 #define MAKE_ZERO_ERASE(__MASK, __K, __TYPE) (__TYPE(~(__TYPE(__MASK) << (__K))))
 #define MAKE_ERASE(__MASK, __K, __UNIT_BITS, __TYPE) (__TYPE(~(__TYPE(__MASK) << (__K * __UNIT_BITS))))
 
+constexpr uint64_t MEMORY_ADDR_MASK = MAKE_MASK(MEMORY_BITS, uint64_t);//16GB memory
+
 #ifdef __linux__
 #define memory_aligned_alloc(alignment, size) aligned_alloc(alignment, size)
 #define memory_aligned_free(addr) free(addr)

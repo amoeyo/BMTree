@@ -94,13 +94,11 @@ status hash_func_update(hash_t* root, cacheline_t cacheline, uint32_t n) {
 ///baseline使用,忽略更新时间
 status hash_func_background_update(hash_t* root, cacheline_t cacheline, uint32_t n) {
 	hash_t __root = 0; //寄存器
-	read_cache(cacheline, cacheline_register, n);
+	latency_t start_point = g_Statistics.get_t_latency();
+	status read_op_stat = read_cache(cacheline, cacheline_register, n);
 	g_hash(&__root, cacheline_register, n);
-	//减去引入的时延，包括hash时延和写入时延，这里只处理了总时延，hash的累计时延没有管
-	latency_t add_latency = g_Statistics.get_t_latency();
-	g_Statistics.set_t_latency(add_latency - hash_latency_unit - memory_write_latency_unit);
-
 	write_cache(root, &__root, sizeof(__root));
+	g_Statistics.set_t_latency(start_point);//后台更新不引入时延
 	return SUCCESS;
 }
 

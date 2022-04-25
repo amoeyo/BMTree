@@ -13,7 +13,7 @@ constexpr latency_t memory_read_latency_unit = 60;
 constexpr latency_t memory_write_latency_unit = 150;
 constexpr latency_t calculate_otp_latency_unit = 40;
 constexpr latency_t parallel_exec_extra_latency_unit
-						= (memory_read_latency_unit - calculate_otp_latency_unit - cache_latency_unit);
+= (memory_read_latency_unit - calculate_otp_latency_unit - cache_latency_unit);
 constexpr latency_t parallel_memory_read_latency_unit = 12;//并行从NVM中读数据
 
 class Statistics {
@@ -43,6 +43,8 @@ private:
 	cntr_t __cache_write_eviction_cntr;
 	cntr_t __cache_eviction_cntr;
 
+	cntr_t __extra_cache_eviction_cntr;
+
 	cntr_t __pst_reg_miss_cntr;
 	cntr_t __pst_reg_hit_cntr;
 
@@ -55,8 +57,11 @@ private:
 	cntr_t __engine_extra_mem_index_write_cntr; //仅back_index_table的带来的写穿和可能的驱逐
 
 	cntr_t __mem_write_cycle_cntr;//对内存写次数做周期性计数
-	
+
 	cntr_t __accelerate_bmt_recover_table_cntr;
+
+	cntr_t __extra_strict_persist_write_cntr;
+	cntr_t __counter_overflow_write_cntr;
 
 	//cntr_t __bmt_read_hit_cntr;
 	//cntr_t __bmt_read_miss_cntr;
@@ -74,9 +79,25 @@ public:
 	cntr_t get_user_read_cntr();
 	cntr_t get_extra_engine_write_cntr();
 	cntr_t get_extra_engine_read_cntr();
+	cntr_t get_meta_extra_write_cntr();
+	cntr_t get_meta_extra_read_cntr();
+	void set_meta_extra_write_cntr(cntr_t cntr);
+	void set_meta_extra_read_cntr(cntr_t cntr);
 	cntr_t get_hash_cntr();
 	cntr_t get_cache_hit_cntr();
 	cntr_t get_cache_miss_cntr();
+	void set_cache_hit_cntr(cntr_t cntr);
+	void set_cache_miss_cntr(cntr_t cntr);
+
+	cntr_t get_extra_strict_persist_write_cntr();
+	cntr_t get_counter_overflow_write_cntr();
+	cntr_t get_acc_table_writes_cntr();
+	cntr_t get_meta_cache_eviction_cntr();
+	void set_meta_cache_eviction_cntr(cntr_t cntr);
+	cntr_t get_extra_cache_eviction_cntr();
+
+	cntr_t get_extra_cache_hit_cntr();
+	cntr_t get_extra_cache_miss_cntr();
 
 public:
 	void t_lat_add(latency_t lat);
@@ -105,6 +126,8 @@ public:
 	void inc_cache_write_eviction_cntr();
 	void inc_cache_eviction_cntr();
 
+	void inc_extra_cache_eviction_cntr();
+
 	void inc_pst_reg_miss_cntr();
 	void inc_pst_reg_hit_cntr();
 
@@ -121,6 +144,9 @@ public:
 	cntr_t get_mem_write_cycle_cntr();
 
 	void inc_accelerate_bmt_recover_table_cntr();
+
+	void inc_extra_strict_persist_write_cntr();
+	void inc_counter_overflow_write_cntr();
 
 	void pretty_show();
 public:

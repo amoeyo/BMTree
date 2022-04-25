@@ -14,11 +14,11 @@
 #include <cmath>
 #include "baseline_CC_v2/baseline_rw.h"
 
-//#define BASELINE
+#define BASELINE
 
 //#define STRICT_PERSIST
 
-#define ATOMIC_UPDATE
+//#define ATOMIC_UPDATE
 
 
 using Addr = uint64_t;

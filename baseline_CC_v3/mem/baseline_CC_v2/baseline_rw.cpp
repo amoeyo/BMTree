@@ -33,6 +33,7 @@ status baseline_read(phy_addr_t addr, size_t n_bytes, Tick& read_latency) {
 	BMT_get_ctr_attr_baseline(g_baseline_BMTree, __addr, &ctr_addr, &__leaf_K, &__I);
 	status cache_op_status = read_cache(ctr_addr, cacheline_register_extra, CACHELINE, parallel_udpate_to_metacache);
 
+
  	if (cache_op_status != CACHE_HIT) {
 		//验证之前需要把数据放到cacheline_register,传副本进行验证
 		reg_data_move(cacheline_register, cacheline_register_extra, CACHELINE);
@@ -51,7 +52,7 @@ status baseline_read(phy_addr_t addr, size_t n_bytes, Tick& read_latency) {
 	//计算OTP
 	g_Statistics.t_lat_add(calculate_otp_latency_unit);
 	//并行读数据时延
-	g_Statistics.t_lat_add(parallel_memory_read_latency_unit);
+	g_Statistics.t_lat_add(parallel_exec_extra_latency_unit);
 	
 	g_Statistics.inc_user_read_cntr();
 	//++g_tick_clock
@@ -207,7 +208,7 @@ status strict_persist_write(phy_addr_t addr, size_t n_bytes, Tick& write_latency
 	//memory_data_write(addr, buffer, CACHELINE);
 	//密文写回，baseline写请求完成
 	//write_cache(ctr_addr, cacheline_register_extra, CACHELINE, nullptr, write_back);
-
+	write_latency = g_Statistics.get_t_latency() - write_latency;
 	//密文写回，strict persist写请求完成
 	//++g_tick_clock
 	return SUCCESS;
@@ -239,10 +240,9 @@ status atomic_update_read(phy_addr_t addr, size_t n_bytes, Tick& read_latency) {
 		reg_data_move(cacheline_register, cacheline_register_extra, CACHELINE);
 		/* 这个函数调用结束之后，root指向的cacheline会被加载到cacheline_register,所以可以连续验证*/
 		status stat = BMT_verify_counter(g_baseline_BMTree, __leaf_K, __BMT_K, root);
-		if (stat == VERIFY_SUCCESS) {
+		if (stat != VERIFY_SUCCESS && stat != HASH_ROOT_MORE) {
 			// do nothing
-		}
-		else {
+	
 			return FAILURE;
 		}
 	}
@@ -281,10 +281,8 @@ status atomic_update_write(phy_addr_t addr, size_t n_bytes, Tick& write_latency)
 		reg_data_move(cacheline_register, cacheline_register_extra, CACHELINE);
 		/* 这个函数调用结束之后，root指向的cacheline会被加载到cacheline_register,所以可以连续验证*/
 		status stat = BMT_verify_counter(g_baseline_BMTree, __leaf_K, __BMT_K, root);
-		if (stat == VERIFY_SUCCESS) {
-			// do nothing
-		}
-		else {
+		if (stat != VERIFY_SUCCESS && stat != HASH_ROOT_MORE) {
+	
 			return FAILURE;
 		}
 	}

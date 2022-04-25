@@ -5,6 +5,8 @@
 #include "cache.h"
 #include "ds_cache.h"
 
+#define TAIL_POINTER_OPTI
+
 //Descriptor相关
 constexpr size_t DESCRIPTOR_RANGE = MEMORY_RANGE / PAGE; //DS数量，每个PAGE对应一个DS
 constexpr size_t DESCRIPTOR_BITS = 128; //128bit
@@ -29,6 +31,8 @@ constexpr uint64_t DESCRIPTOR_PAGE_QUEUE_NUM_MASK = MAKE_MASK(DESCRIPTOR_PAGE_QU
 constexpr uint64_t DESCRIPTOR_PAGE_DEMOTION_FLAG_MASK = MAKE_MASK(DESCRIPTOR_PAGE_DEMOTION_FLAG, uint64_t);
 constexpr uint64_t DESCRIPTOR_PAGE_HOT_ADDR_MASK = MAKE_MASK(DESCRIPTOR_PAGE_HOT_ADDR, uint64_t);
 constexpr uint64_t DESCRIPTOR_PAGE_FRAME_POINTER_MASK = MAKE_MASK(DESCRIPTOR_PAGE_FRAME_POINTER, uint64_t);
+
+constexpr uint64_t NULL_TAIL = 0xffffff;
 
 constexpr uint64_t MULTIQUEUE_SIZE = 8;
 
@@ -88,7 +92,7 @@ public:
 	status print_status();
 #endif
 
-private:
+//private:
 	uint64_t __ds_high_bits;
 	uint64_t __ds_low_bits;
 };
@@ -132,7 +136,10 @@ public:
 
 	uint64_t get_queue_size();
 
+	
+
 #ifdef PROMT_DEBUG
+	status check_size();
 	status print_sq();
 	status print_status();
 #endif
@@ -140,6 +147,9 @@ public:
 private:
 	uint64_t __queue_idx;
 	ds_blk_t __ds_queue_head;//这里只保存一个头
+#ifdef TAIL_POINTER_OPTI
+	ds_blk_t __ds_queue_tail;//这是一个指向尾部的指针
+#endif
 	uint64_t __size;//队列大小
 	uint64_t __max_rw_num;
 };
@@ -180,6 +190,8 @@ public:
 #ifdef PROMT_DEBUG
 	status print_mq();
 	status print_sq_size();
+	status check_sq_size();
+	status print_sq_idx(uint64_t idx);
 #endif
 
 private:
@@ -200,6 +212,11 @@ uint64_t get_queue_idx_size(uint64_t idx);
 status print_mq();
 
 status print_sq_size();
+
+status check_sq_size();
+
+status
+print_sq_idx(uint64_t idx);
 #endif
 extern ds_addr_t DescriptorBlockIdxTable; //声明在此，初始化随MQ，大小为MEMORY_RANGE / PAGE
 

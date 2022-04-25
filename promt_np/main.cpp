@@ -17,12 +17,12 @@ constexpr char WRITE = 'W';
 #ifdef PROMT_DEBUG
 
 void UT_hotpage_replace_split(ProMT& ea) {
-	int addr = 1;
+	int addr = 0;
 	cntr_t mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss;
 	page_addr_t page_addr;
 	for (int i = 0; i < 512; i++) {
 		page_addr = addr << PAGE_BITS;
-		for (int k = 0; k < 4; k++) {
+		for (int k = 0; k < 8; k++) {
 			ea.write(page_addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
 		}
 		addr++;
@@ -40,7 +40,7 @@ void UT_hotpage_replace() {
 	UT_hotpage_replace_split(ea);
 	print_sq_size();
 	print_hotpage_map();
-	page_addr = 120 << PAGE_BITS;
+	page_addr = 700 << PAGE_BITS;
 	ea.write(page_addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
 	print_sq_size();
 	print_hotpage_map();
@@ -48,6 +48,7 @@ void UT_hotpage_replace() {
 
 void UT_trace_test() {
 	cntr_t mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss;
+	Tick total_lat = 0;
 	// num带回meta cache的读/写次数，read先返回总延迟
 	ProMT ea(mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
 	ifstream infile;
@@ -59,29 +60,29 @@ void UT_trace_test() {
 	Tick clock;
 	char rw;
 	Addr addr;
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 50000; i++) {
 		// ticks
 		infile >> clock;
 		// RW
 		infile >> rw;
 		// addr
 		infile >> addr;
-		if (rw == READ) {
-			ea.write(addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
-			cout << mem_writes << ", " << mem_reads << ", " << ex_writes << ", " << ex_reads << ", "
-				<< hash << ", " << cache_hit << ", " << cache_miss << endl;
-		}
-		else if (rw == WRITE) {
-			ea.write(addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
-			//cout << mem_writes << ", " << mem_reads << ", " << ex_writes << ", " << ex_reads << ", "
-				//<< hash << ", " << cache_hit << ", " << cache_miss << endl;
-		}
-		else {
-			cout << "err" << endl;
-		}
+		addr &= MEMORY_ADDR_MASK;
+		total_lat = ea.write(addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
+			/*cout << mem_writes << ", " << mem_reads << ", " << ex_writes << ", " << ex_reads << ", "
+				<< hash << ", " << cache_hit << ", " << cache_miss << endl;*/
+		//cout << mem_writes << endl;
+		
 	}
+	// ticks
+	infile >> clock;
+	// RW
+	infile >> rw;
+	// addr
+	infile >> addr;
+	total_lat = ea.write(addr, mem_writes, mem_reads, ex_writes, ex_reads, hash, cache_hit, cache_miss);
 	cout << mem_writes << ", " << mem_reads << ", " << ex_writes << ", " << ex_reads << ", "
-		<< hash << ", " << cache_hit << ", " << cache_miss << endl;
+		<< hash << ", " << cache_hit << ", " << cache_miss << ", " << total_lat << endl;
 }
 
 void UT_Multiqueue_test() {
@@ -196,6 +197,8 @@ int main()
 	//UT_Multiqueue_test();
 	//UT_Hotpage_map_test();
 	//UT_g_multiqueue_update();
-	UT_latency_test();
+	//UT_latency_test();
+	UT_trace_test();
+	//UT_hotpage_replace();
 	return 0; 
 }

@@ -38,11 +38,13 @@ constexpr status EVICTION_OLD_NODE = 41;
 
 constexpr size_t LIFETIME = 16;
 
-status promt_np_read(phy_addr_t addr, size_t n_bytes, Tick& read_latency);
+Tick promt_np_read(phy_addr_t addr, size_t n_bytes, Tick& read_latency);
 
-status promt_np_write(phy_addr_t addr, size_t n_bytes, Tick& write_latency);
+Tick promt_np_write(phy_addr_t addr, size_t n_bytes, Tick& write_latency);
 
 void print_hotpage_map();
+
+extern uint64_t g_valid_leaf_N;
 
 
 #endif

@@ -3,6 +3,8 @@
 extern uint8_t* cacheline_register; //64B共享大寄存器
 extern uint8_t* cacheline_register_extra;
 
+extern uint64_t g_valid_leaf_N;
+
 //这里的root是寄存器
 status hash_func_UT(hash_t* root, cacheline_t cacheline, uint32_t n) {
 	//check n <= 64
@@ -235,6 +237,12 @@ status BMT_path_update(BMTree& bmTree, uint32_t leaf_K, hash_func_t hash) {
 		bmTree.sizeof_node, hash, bmTree.leaf_N);
 }
 
+status BMT_path_update(BMTree& bmTree, uint32_t leaf_K, uint32_t BMT_K, addr_t root) {
+	addr_t base = bmTree.base + bmTree.sizeof_BMT * BMT_K;
+	return __BMT_traverse_path(base, bmTree.leaf_N, leaf_K, root,
+		bmTree.sizeof_node, bmTree.update_hash, bmTree.leaf_N);
+}
+
 //hot_tree需要调用该接口，会用到cacheline_register
 //在外部验证一次是因为hot tree的叶子节点实际上是在global tree中
 status BMT_path_update(const BMTree& bmTree_hot, const BMTree& bmTree_region,
@@ -251,9 +259,10 @@ status BMT_path_update(const BMTree& bmTree_hot, const BMTree& bmTree_region,
 	__leaf_root_K = next_level_idx(hot_index, g_exp);
 	// 这里的leaf_N = 64，是第二层了，base也是第二层的首地址
 	return __BMT_traverse_path(bmTree_hot.base, bmTree_hot.leaf_N, __leaf_root_K, root,
-		bmTree_hot.sizeof_node, bmTree_hot.update_hash, bmTree_hot.leaf_N);
+		bmTree_hot.sizeof_node, bmTree_hot.update_hash, g_valid_leaf_N - 1);
 
 }
+
 
 
 //region_tree和back_tree可以调用这个接口,会用到cacheline_register
@@ -281,10 +290,18 @@ status BMT_verify_counter(const BMTree& bmTree_hot, const BMTree& bmTree_region,
 		__leaf_root_K = next_level_idx(hot_index, g_exp);
 		// 这里的leaf_N = 64，是第二层了，base也是第二层的首地址
 		return __BMT_traverse_path(bmTree_hot.base, bmTree_hot.leaf_N, __leaf_root_K, root,
-			bmTree_hot.sizeof_node, bmTree_hot.verify_hash, bmTree_hot.leaf_N);
+			bmTree_hot.sizeof_node, bmTree_hot.verify_hash, g_valid_leaf_N - 1);
 	}
-	else return ret;
+	return ret;
 
+}
+
+
+//hot_tree需要调用该接口。cacheline_register
+status BMT_verify_counter(const BMTree& bmTree, uint32_t leaf_K, addr_t root, uint32_t valid_leaf_N) {
+	addr_t base = bmTree.base;
+	return __BMT_traverse_path(base, bmTree.leaf_N, leaf_K, root,
+		bmTree.sizeof_node, bmTree.verify_hash, valid_leaf_N);
 }
 
 status __BMT_calculate_root(addr_t base, uint32_t leaf_N, uint32_t sizeof_node,
@@ -340,6 +357,11 @@ status BMT_get_ctr_attr_global(BMTree& bmTree, phy_addr_t addr,
 	return SUCCESS;
 }
 
+status BMT_get_ctr_attr_I(phy_addr_t addr, uint32_t* I) {
+	*I = (uint32_t)((addr >> CACHELINE_BITS) & PROMT_CTR_INDEX_MASK);
+	return SUCCESS;
+}
+
 status BMT_get_leaf_K_addr(BMTree& bmTree, uint32_t leak_K, addr_t* addr) {
 	*addr = bmTree.base + bmTree.sizeof_node * leak_K;
 	return SUCCESS;
@@ -360,7 +382,8 @@ BMTreeMgr::BMTreeMgr() {
 
 	//hot tree，4层，但是实际存储空间只有3层
 	__hot_BMTree.BMT_N = 1;
-	__hot_BMTree.leaf_N = PROMT_HOT_LEAF_N;
+	//__hot_BMTree.leaf_N = PROMT_HOT_LEAF_N;
+	__hot_BMTree.leaf_N = PROMT_HOT_REAL_LEAF_N;
 	__hot_BMTree.root = memory_alloc_cacheline();
 	__hot_BMTree.sizeof_node = SIZE_OF_NODE;
 	BMT_alloc(__hot_BMTree);

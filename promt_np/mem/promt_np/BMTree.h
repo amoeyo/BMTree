@@ -142,6 +142,11 @@ status BMT_path_update(BMTree& bmTree, uint32_t leaf_K, hash_func_t hash);
 status BMT_path_update(const BMTree& bmTree_hot, const BMTree& bmTree_region,
 	uint32_t leaf_K, uint32_t hot_index, addr_t root);
 
+status BMT_path_update(BMTree& bmTree, uint32_t leaf_K, addr_t root, uint32_t valid_leaf_N);
+
+status BMT_path_update(BMTree& bmTree, uint32_t leaf_K, uint32_t BMT_K, addr_t root);
+
+status BMT_verify_counter(const BMTree& bmTree, uint32_t leaf_K, uint32_t BMT_K, addr_t root);
 
 //region_tree和back_tree可以调用这个接口,会用到cacheline_register
 status BMT_verify_counter(const BMTree& bmTree, uint32_t leaf_K, uint32_t BMT_K, addr_t root);
@@ -152,6 +157,8 @@ status BMT_verify_counter(const BMTree& bmTree, uint32_t leaf_K, uint32_t BMT_K,
 // 此时的leaf_K等数据实际上是第二层？然后一直往上验证
 status BMT_verify_counter(const BMTree& bmTree_hot, const BMTree& bmTree_region, 
 	uint32_t leaf_K, uint32_t hot_index, addr_t root);
+
+status BMT_verify_counter(const BMTree& bmTree, uint32_t leaf_K, addr_t root, uint32_t valid_leaf_N);
 
 status __BMT_calculate_root(addr_t base, uint32_t leaf_N, uint32_t sizeof_node,
 	uint32_t valid_leaf_N, addr_t* root);
@@ -166,6 +173,8 @@ status BMT_get_ctr_attr(BMTree& bmTree, phy_addr_t addr,
 //由于globalBMT是一整棵树并且有固定层数，所以这里单独写一个找CTR索引的函数
 status BMT_get_ctr_attr_global(BMTree& bmTree, phy_addr_t addr,
 	addr_t* ctr, uint32_t* leaf_K, uint32_t* I);
+
+status BMT_get_ctr_attr_I(phy_addr_t addr, uint32_t* I);
 
 status BMT_get_leaf_K_addr(BMTree& bmTree, uint32_t leak_K, addr_t* addr);
 

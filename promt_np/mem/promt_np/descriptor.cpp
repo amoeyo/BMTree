@@ -6,106 +6,108 @@ ds_addr_t DescriptorBlockIdxTable; //声明在此，初始化随MQ，大小为MEMORY_RANGE / 
 DescriptorBlock::DescriptorBlock(page_addr_t addr)
 	: __ds_high_bits(0), __ds_low_bits(0) {
 	__set_page_addr(addr);
+	set_frame_pointer(NULL_TAIL);
 }
 
 DescriptorBlock::DescriptorBlock()
 	: __ds_high_bits(0), __ds_low_bits(0) {
 	__set_page_addr(0);
+	set_frame_pointer(NULL_TAIL);
 }
 
-status 
+status
 DescriptorBlock::__set_page_addr(page_addr_t addr) {
 	//page_addr_t page_addr = addr >> PAGE_BITS;
 	__set_high_bits(DESCRIPTOR_PAGE_ADDR_MASK, DESCRIPTOR_PAGE_ADDR_OFFSET, addr);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_page_addr(phy_addr_t addr) {
 	page_addr_t page_addr = addr >> PAGE_BITS;
 	__set_high_bits(DESCRIPTOR_PAGE_ADDR_MASK, DESCRIPTOR_PAGE_ADDR_OFFSET, page_addr);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_page_addr(page_addr_t* page_addr) {
 	__get_value(__ds_high_bits, DESCRIPTOR_PAGE_ADDR_MASK, DESCRIPTOR_PAGE_ADDR_OFFSET, page_addr);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_acc_num(uint64_t acc_num) {
 	__set_high_bits(DESCRIPTOR_PAGE_ACCESS_NUM_MASK, DESCRIPTOR_PAGE_ACCESS_NUM_OFFSET, acc_num);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_acc_num(uint64_t* acc_num) {
 	__get_value(__ds_high_bits, DESCRIPTOR_PAGE_ACCESS_NUM_MASK, DESCRIPTOR_PAGE_ACCESS_NUM_OFFSET, acc_num);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_exp_time(uint64_t exp_time) {
 	__set_high_bits(DESCRIPTOR_PAGE_EXPIRATION_TIME_MASK, 0, exp_time);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_exp_time(uint64_t* exp_time) {
 	__get_value(__ds_high_bits, DESCRIPTOR_PAGE_EXPIRATION_TIME_MASK, 0, exp_time);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_queue_num(uint64_t queue_num) {
 	__set_low_bits(DESCRIPTOR_PAGE_QUEUE_NUM_MASK, DESCRIPTOR_PAGE_QUEUE_NUM_OFFSET, queue_num);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_queue_num(uint64_t* queue_num) {
 	__get_value(__ds_low_bits, DESCRIPTOR_PAGE_QUEUE_NUM_MASK, DESCRIPTOR_PAGE_QUEUE_NUM_OFFSET, queue_num);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_demo_flag(uint64_t demo_flag) {
 	__set_low_bits(DESCRIPTOR_PAGE_DEMOTION_FLAG_MASK, DESCRIPTOR_PAGE_DEMOTION_FLAG_OFFSET, demo_flag);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_demo_flag(uint64_t* demo_flag) {
 	__get_value(__ds_low_bits, DESCRIPTOR_PAGE_DEMOTION_FLAG_MASK, DESCRIPTOR_PAGE_DEMOTION_FLAG_OFFSET, demo_flag);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_hot_addr(uint64_t hot_addr) {
 	__set_low_bits(DESCRIPTOR_PAGE_HOT_ADDR_MASK, DESCRIPTOR_PAGE_HOT_ADDR_OFFSET, hot_addr);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_hot_addr(uint64_t* hot_addr) {
 	__get_value(__ds_low_bits, DESCRIPTOR_PAGE_HOT_ADDR_MASK, DESCRIPTOR_PAGE_HOT_ADDR_OFFSET, hot_addr);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::set_frame_pointer(uint64_t next_frame) {
 	__set_low_bits(DESCRIPTOR_PAGE_FRAME_POINTER_MASK, 0, next_frame);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::get_frame_pointer(uint64_t* next_frame) {
 	__get_value(__ds_low_bits, DESCRIPTOR_PAGE_FRAME_POINTER_MASK, 0, next_frame);
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::__get_value(uint64_t bits, uint64_t mask, uint64_t offset, uint64_t* value) {
 	uint64_t temp_value = bits & (mask << offset); //取出相应位数
 	temp_value = temp_value >> offset;
@@ -113,7 +115,7 @@ DescriptorBlock::__get_value(uint64_t bits, uint64_t mask, uint64_t offset, uint
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::__set_high_bits(uint64_t mask, uint64_t offset, uint64_t value) {
 	uint64_t temp_value = value & mask;
 	__ds_high_bits &= (~(mask << offset));
@@ -121,7 +123,7 @@ DescriptorBlock::__set_high_bits(uint64_t mask, uint64_t offset, uint64_t value)
 	return SUCCESS;
 }
 
-status 
+status
 DescriptorBlock::__set_low_bits(uint64_t mask, uint64_t offset, uint64_t value) {
 	uint64_t temp_value = value & mask;
 	__ds_low_bits &= (~(mask << offset));
@@ -130,10 +132,11 @@ DescriptorBlock::__set_low_bits(uint64_t mask, uint64_t offset, uint64_t value) 
 }
 
 // 除了页地址以外的位清零
-status 
+status
 DescriptorBlock::clear() {
 	__ds_high_bits &= (DESCRIPTOR_PAGE_ADDR_MASK << DESCRIPTOR_PAGE_ADDR_OFFSET);
 	__ds_low_bits = 0;
+	set_frame_pointer(NULL_TAIL);
 	return SUCCESS;
 }
 
@@ -164,46 +167,70 @@ status DescriptorBlock::print() {
 /*SQ*/
 
 SingleQueue::SingleQueue(uint64_t idx)
-	: __queue_idx(idx), __ds_queue_head(0), __size(0) {
+	: __queue_idx(idx), __ds_queue_head(0), 
+#ifdef TAIL_POINTER_OPTI
+	__ds_queue_tail(0),
+#endif
+	__size(0) {
 	__max_rw_num = (1 << (idx + 1)) - 1;
 }
 
 SingleQueue::SingleQueue()
-	: __queue_idx(0), __ds_queue_head(0), __size(0), __max_rw_num(0) {
+	: __queue_idx(0), __ds_queue_head(0), 
+#ifdef TAIL_POINTER_OPTI
+	__ds_queue_tail(0),
+#endif
+	__size(0), __max_rw_num(0) {
 
 }
 
 // 用于将ds_page直接挂到队尾，此时队列中没有ds_page，不需要搜索ds_page是否存在
-status 
+status
 SingleQueue::push_back(page_addr_t ds_page) {
 	// 直接挂到队列尾的操作，只涉及最后一个元素的修改
-	ds_blk_t ds_register; //寄存器
-	page_addr_t next_frame;
-	ds_addr_t cur_ds;
-	cur_ds = &__ds_queue_head;
-	cur_ds->get_frame_pointer(&next_frame);
-	if (next_frame == 0) { //队列为空
+	if (__size == 0) { //队列为空
 		__ds_queue_head.set_frame_pointer(ds_page);
+#ifdef TAIL_POINTER_OPTI
+		__ds_queue_tail.set_frame_pointer(ds_page);
+#endif
 		__size++;
 		return PUSH_BACK_SUCCESS;
 	}
-	while (next_frame != 0) {
-		//读缓存找ds_table[next_frame]，可能会访存
+	ds_blk_t ds_register; //寄存器
+	page_addr_t next_frame;
+	ds_addr_t cur_ds;
+#ifdef TAIL_POINTER_OPTI
+	cur_ds = &__ds_queue_tail;
+	cur_ds->get_frame_pointer(&next_frame);
+	cur_ds = DescriptorBlockIdxTable + next_frame;//计算地址
+	read_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));//读尾指针指向的ds到寄存器
+	
+	ds_register.set_frame_pointer(ds_page);
+	__ds_queue_tail.set_frame_pointer(ds_page); //修改尾指针指向当前push的ds
+	write_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));
+#else
+	cur_ds = &__ds_queue_head;
+	cur_ds->get_frame_pointer(&next_frame);
+	// while (next_frame != 0)
+	for (int i = 0; i < __size; i++) {
+		//读缓存找ds_table[next_frame]，可能会访存	
 		cur_ds = DescriptorBlockIdxTable + next_frame;//计算地址
 		read_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));//读缓存到寄存器
 		ds_register.get_frame_pointer(&next_frame);
+		//if (next_frame == 0) break;
 	}
 	// 退出循环说明找到了最后一个ds
 	ds_register.set_frame_pointer(ds_page);
 	// 修改之后写缓存，不写回
 	write_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));
+#endif
 	__size++;
 	return PUSH_BACK_SUCCESS;
 }
 
 // 从特定元素开始找到队列尾，适用于ds存在于队列中，需要移动到队列尾的情况
 // ds_head是一个指针
-status 
+status
 SingleQueue::__push_back(ds_addr_t ds_head, page_addr_t ds_page) {
 	//page_addr_t next_frame;
 	//ds_addr_t cur_ds;
@@ -231,21 +258,30 @@ SingleQueue::__push_back(ds_addr_t ds_head, page_addr_t ds_page) {
 
 // ds是一个寄存器
 // 入队列，可能涉及上一个DS，尾部DS和本DS指针修改
-status 
+status
 SingleQueue::push_back_n(ds_addr_t ds, page_addr_t ds_page) {
 	page_addr_t next_frame;
 	ds_addr_t cur_ds;
 	ds_blk_t ds_register;
 	cur_ds = &__ds_queue_head;
 	cur_ds->get_frame_pointer(&next_frame);
-	if (next_frame == 0) { //首节点
+	//if (next_frame == 0) { //首节点
+	if (__size == 0) {
 		__ds_queue_head.set_frame_pointer(ds_page);
+#ifdef TAIL_POINTER_OPTI
+		__ds_queue_tail.set_frame_pointer(ds_page);
+#endif
 		__size++;
 		return PUSH_BACK_SUCCESS;
 	}
 	if (next_frame == ds_page) { //涉及首节点的更改要单独处理
 		ds->get_frame_pointer(&next_frame);
 		__ds_queue_head.set_frame_pointer(next_frame);
+#ifdef TAIL_POINTER_OPTI
+		if (__size == 1) { //唯一ds
+			__ds_queue_tail.set_frame_pointer(NULL_TAIL);
+		}
+#endif
 		__size--;
 		uint64_t cur_acc_num;
 		ds->get_acc_num(&cur_acc_num);
@@ -258,15 +294,26 @@ SingleQueue::push_back_n(ds_addr_t ds, page_addr_t ds_page) {
 		}
 	}
 
-	while (next_frame != ds_page && next_frame != 0) { //这里应该肯定能找着	
+#ifdef TAIL_POINTER_OPTI
+	// 针对特性进行的优化，针对上一次已经访问的ds，可以直接定位尾部ds，但是ds结构受限，frame pointer仅24位，无法设定头尾指针
+#endif
+
+	//while (next_frame != ds_page && next_frame != 0)
+	for (int i = 0; i < __size; i++) {
 		//读缓存找ds_table[next_frame]，可能会访存
 		cur_ds = DescriptorBlockIdxTable + next_frame;
 		read_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));
 		ds_register.get_frame_pointer(&next_frame);
+		if (next_frame == ds_page) break;
 	}
-	if (next_frame == 0) {
-		//没找着，直接挂到队尾，修改最后一个元素的指针
+
+	if (next_frame == NULL_TAIL) {
+		//没找着，直接挂到队尾，修改最后一个元素的指针，应该不会进入这里
 		ds_register.set_frame_pointer(ds_page);
+#ifdef TAIL_POINTER_OPTI
+		__ds_queue_tail.set_frame_pointer(ds_page);
+#endif
+		ds->set_frame_pointer(NULL_TAIL);
 		write_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));
 		__size++;
 		return PUSH_BACK_SUCCESS;
@@ -275,9 +322,17 @@ SingleQueue::push_back_n(ds_addr_t ds, page_addr_t ds_page) {
 		//找着了，修改现在这个ds的指针指向传入ds的next_frame
 		ds->get_frame_pointer(&next_frame);
 		ds_register.set_frame_pointer(next_frame);
+#ifdef TAIL_POINTER_OPTI
+		// 判断修改的是不是最后一个ds
+		if (next_frame == NULL_TAIL) {
+			page_addr_t new_tail_addr;
+			ds_register.get_page_addr(&new_tail_addr);
+			__ds_queue_tail.set_frame_pointer(new_tail_addr); //修改尾指针
+		}
+#endif
 		// 修改之后要记得写缓存
 		write_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));
-		ds->set_frame_pointer(0);
+		ds->set_frame_pointer(NULL_TAIL);
 		// 检查access counter有没有超上限，如果没超过就对当前队列push_back，超过了就push_back到上一层
 		uint64_t cur_acc_num;
 		ds->get_acc_num(&cur_acc_num);
@@ -294,20 +349,26 @@ SingleQueue::push_back_n(ds_addr_t ds, page_addr_t ds_page) {
 }
 
 // 驱逐队列头部并带回
-status 
+status
 SingleQueue::evict_head(ds_addr_t ds_reg) {
-	page_addr_t page_addr;
+	page_addr_t head_page_addr, page_addr;
 	ds_blk_t ds_register(0);
-	__ds_queue_head.get_frame_pointer(&page_addr);
-	ds_addr_t head_ds = DescriptorBlockIdxTable + page_addr;
+	__ds_queue_head.get_frame_pointer(&head_page_addr);
+	ds_addr_t head_ds = DescriptorBlockIdxTable + head_page_addr;
 	// 读取当前队列第一个ds
 	read_ds_cache(head_ds, ds_reg, sizeof(ds_blk_t));
 	// 获取当前ds指向的下一个ds，驱逐的头部随ds_reg带出
 	ds_reg->get_frame_pointer(&page_addr);
 	// 头节点指向改变
 	__ds_queue_head.set_frame_pointer(page_addr);
+#ifdef TAIL_POINTER_OPTI
+	if (__size == 1) { //只有一个节点，page_addr = NULL_TAIL
+		__ds_queue_tail.set_frame_pointer(NULL_TAIL);
+	}
+#endif
 	// 除页地址以外的位清零，写回缓存
-	ds_register.__set_page_addr(page_addr);
+	ds_register.__set_page_addr(head_page_addr);
+	//ds_register.clear();
 	/*写缓存，但不知道要不要写回*/
 	write_ds_cache(head_ds, &ds_register, sizeof(ds_blk_t));
 	__size--;
@@ -315,7 +376,7 @@ SingleQueue::evict_head(ds_addr_t ds_reg) {
 }
 
 
-status 
+status
 SingleQueue::get_head(ds_addr_t ds_reg) {
 	page_addr_t page_addr;
 	ds_blk_t ds_register(0);
@@ -327,14 +388,16 @@ SingleQueue::get_head(ds_addr_t ds_reg) {
 	return SUCCESS;
 }
 
-status 
+status
 SingleQueue::set_queue_idx(uint64_t idx) {
 	__queue_idx = idx;
 	__max_rw_num = (1 << (idx + 1)) - 1;
 	return SUCCESS;
 }
 
-uint64_t 
+
+
+uint64_t
 SingleQueue::get_queue_size() {
 	return __size;
 }
@@ -345,10 +408,15 @@ status SingleQueue::print_sq() {
 	fmt_print_kv("size: ", __size);
 	fmt_print_kv("max acc num: ", __max_rw_num);
 	fmt_print("======================");
-	page_addr_t next_page;
+	page_addr_t next_page, tail_page;
 	__ds_queue_head.get_frame_pointer(&next_page);
+#ifdef TAIL_POINTER_OPTI
+	__ds_queue_tail.get_frame_pointer(&tail_page);
+	fmt_print_k_hex_v("head ", next_page);
+	fmt_print_k_hex_v("size: ", tail_page);
+#endif
 	ds_blk_t ds_reg;
-	while (next_page != 0) {
+	while (next_page != NULL_TAIL) {
 		ds_addr_t cur_ds = DescriptorBlockIdxTable + next_page;
 		read_ds_cache(cur_ds, &ds_reg, sizeof(ds_blk_t));
 		ds_reg.print();
@@ -362,16 +430,59 @@ status SingleQueue::print_status() {
 	fmt_print_kv("queue ", __queue_idx);
 	fmt_print_kv("size: ", __size);
 	fmt_print("======================");
-	page_addr_t next_page;
+	page_addr_t next_page, tail_page;
 	__ds_queue_head.get_frame_pointer(&next_page);
+#ifdef TAIL_POINTER_OPTI
+	__ds_queue_tail.get_frame_pointer(&tail_page);
+	fmt_print_k_hex_v("head ", next_page);
+	fmt_print_k_hex_v("tail: ", tail_page);
+#endif
+	
 	ds_blk_t ds_reg;
-	if (next_page != 0) {
+	if (next_page != NULL_TAIL) {
 		ds_addr_t cur_ds = DescriptorBlockIdxTable + next_page;
 		read_ds_cache(cur_ds, &ds_reg, sizeof(ds_blk_t));
 		ds_reg.print();
 		ds_reg.get_frame_pointer(&next_page);
 	}
 	fmt_print("======================");
+	return SUCCESS;
+}
+
+status
+SingleQueue::check_size() {
+	// 直接挂到队列尾的操作，只涉及最后一个元素的修改
+	ds_blk_t ds_register; //寄存器
+	page_addr_t next_frame;
+	ds_addr_t cur_ds;
+	cur_ds = &__ds_queue_head;
+	cur_ds->get_frame_pointer(&next_frame);
+	if (next_frame == NULL_TAIL) {
+		if (__size == 0) {
+			return SUCCESS;
+		}
+		else {
+			printf("size is not match! write cntr: %d", g_Statistics.get_user_write_cntr());
+			return FAILURE;
+		}
+	}
+	// while (next_frame != 0)
+	int i = 0;
+	while (next_frame != NULL_TAIL) {
+		i++;
+		cur_ds = DescriptorBlockIdxTable + next_frame;//计算地址
+		read_ds_cache(cur_ds, &ds_register, sizeof(ds_blk_t));//读缓存到寄存器
+		uint64_t hot_index;
+		ds_register.get_hot_addr(&hot_index);
+		/*if (__queue_idx == 3 && hot_index == 0) {
+			printf("node in queue 3 is not in hot tree, why? write cntr: %d", g_Statistics.get_user_write_cntr());
+		}*/
+		ds_register.get_frame_pointer(&next_frame);
+	}
+	if (i != __size) {
+		printf("size %d is not match! write cntr: %d, queue: %d\n", i, g_Statistics.get_user_write_cntr(), __queue_idx);
+		print_sq();
+	}
 	return SUCCESS;
 }
 #endif // PROMT_DEBUG
@@ -391,11 +502,12 @@ MultiQueue::MultiQueue() {
 	ds_addr_t p = DescriptorBlockIdxTable;
 	for (int i = 0; i < MEMORY_RANGE / PAGE; i++) {
 		(p + i)->__set_page_addr((page_addr_t)i);
+		(p + i)->set_frame_pointer(NULL_TAIL);
 	}
 }
 
 // 把ds加到queue[idx]队列，ds是一个寄存器，在关键路径上从cache里读出来的
-status 
+status
 MultiQueue::push_queue_idx(ds_addr_t ds, uint64_t* idx) {
 	uint64_t page_addr;
 	ds->get_page_addr(&page_addr);
@@ -409,7 +521,7 @@ MultiQueue::push_queue_idx(ds_addr_t ds, uint64_t* idx) {
 			(*idx)--;
 			queue_set[*idx].push_back(page_addr);
 		}
-		
+
 	}
 	else if (push_stat == PUSH_BACK_THIS) {
 		queue_set[*idx].push_back(page_addr);
@@ -417,7 +529,7 @@ MultiQueue::push_queue_idx(ds_addr_t ds, uint64_t* idx) {
 	return SUCCESS;
 }
 // 把ds直接加到queue[idx]队尾，修改队尾元素的frame pointer并写回，这里适用于头部驱逐的情况
-status 
+status
 MultiQueue::push_back_queue_idx(ds_addr_t ds, uint64_t idx) {
 	uint64_t page_addr;
 	ds->get_page_addr(&page_addr);
@@ -425,17 +537,17 @@ MultiQueue::push_back_queue_idx(ds_addr_t ds, uint64_t idx) {
 	return SUCCESS;
 }
 
-status 
+status
 MultiQueue::evict_queue_head(uint64_t idx, ds_addr_t ds_reg) {
 	return queue_set[idx].evict_head(ds_reg);
 }
 
-status 
+status
 MultiQueue::get_queue_head(uint64_t idx, ds_addr_t ds_reg) {
 	return queue_set[idx].get_head(ds_reg);
 }
 
-uint64_t 
+uint64_t
 MultiQueue::get_queue_idx_size(uint64_t idx) {
 	return queue_set[idx].get_queue_size();
 }
@@ -452,6 +564,18 @@ status MultiQueue::print_sq_size() {
 	for (int i = 0; i < MULTIQUEUE_SIZE; i++) {
 		queue_set[i].print_status();
 	}
+	return SUCCESS;
+}
+
+status MultiQueue::check_sq_size() {
+	for (int i = 0; i < MULTIQUEUE_SIZE; i++) {
+		queue_set[i].check_size();
+	}
+	return SUCCESS;
+}
+
+status MultiQueue::print_sq_idx(uint64_t idx) {
+	queue_set[idx].print_status();
 	return SUCCESS;
 }
 #endif
@@ -490,8 +614,18 @@ print_mq() {
 }
 
 status
+print_sq_idx(uint64_t idx) {
+	return g_Mutiqueue.print_sq_idx(idx);
+}
+
+status
 print_sq_size() {
 	return g_Mutiqueue.print_sq_size();
+}
+
+status
+check_sq_size() {
+	return g_Mutiqueue.check_sq_size();
 }
 
 #endif
